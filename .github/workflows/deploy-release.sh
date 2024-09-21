@@ -70,8 +70,11 @@ fi
 #
 
 DEPLOY_DIRECTORY="$(pwd)/build/maven"
-info "Artifacts will temporarily be deployed to ${DEPLOY_DIRECTORY}"
 
+info "The following artifacts will be deployed:"
+find "${DEPLOY_DIRECTORY}" -type f
+
+info "Signing artifacts..."
 find "${DEPLOY_DIRECTORY}" -type f -exec gpg --sign --detach-sign {} \; ||
   fatal "Could not sign artifacts."
 
