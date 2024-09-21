@@ -72,6 +72,9 @@ fi
 DEPLOY_DIRECTORY="$(pwd)/build/maven"
 info "Artifacts will temporarily be deployed to ${DEPLOY_DIRECTORY}"
 
+find "${DEPLOY_DIRECTORY}" -type f -execute gpg --sign --detach-sign {} \; ||
+  fatal "Could not sign artifacts."
+
 info "Checking signatures were created"
 SIGNATURE_COUNT=$(find "${DEPLOY_DIRECTORY}" -type f -name '*.asc' | wc -l) || fatal "Could not list signatures"
 info "Generated ${SIGNATURE_COUNT} signatures"

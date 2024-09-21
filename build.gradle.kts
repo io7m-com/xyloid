@@ -29,8 +29,6 @@ if (gradleVersionRequired != gradleVersionReceived) {
 }
 
 plugins {
-  signing
-
   id("org.jetbrains.kotlin.jvm")
     .version("2.0.20")
     .apply(false)
@@ -116,8 +114,6 @@ fun configurePublishingFor(project: Project) {
 
   val publishSources =
     propertyBoolean(project, "com.io7m.build.publishSources")
-  val enableSigning =
-    propertyBooleanOptional(project, "com.io7m.build.enableSigning", true)
 
   /*
    * Create an empty JavaDoc jar. Required for Maven Central deployments.
@@ -228,17 +224,6 @@ fun configurePublishingFor(project: Project) {
         task.actions.clear()
         task.dependsOn.add(taskSourcesEmpty)
       }
-  }
-
-  /*
-   * Configure signing.
-   */
-
-  if (enableSigning) {
-    signing {
-      useGpgCmd()
-      sign(project.publishing.publications)
-    }
   }
 }
 
