@@ -75,8 +75,12 @@ info "The following artifacts will be deployed:"
 find "${DEPLOY_DIRECTORY}" -type f
 
 info "Signing artifacts..."
-find "${DEPLOY_DIRECTORY}" -type f -exec gpg --sign --detach-sign {} \; ||
+find "${DEPLOY_DIRECTORY}" -type f -exec gpg -a --sign --detach-sign {} \; ||
   fatal "Could not sign artifacts."
+
+info "Produced signatures:"
+find "${DEPLOY_DIRECTORY}" -type f -name '*.asc' ||
+  fatal "Could not list signatures."
 
 info "Checking signatures were created"
 SIGNATURE_COUNT=$(find "${DEPLOY_DIRECTORY}" -type f -name '*.asc' | wc -l) || fatal "Could not list signatures"
