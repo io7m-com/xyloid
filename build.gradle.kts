@@ -166,10 +166,10 @@ fun configurePublishingFor(project: Project) {
 
           developers {
             developer {
-              name.set("The Palace Project")
-              email.set("info@thepalaceproject.org")
-              organization.set("The Palace Project")
-              organizationUrl.set("https://thepalaceproject.org/")
+              name.set("Mark Raynsford")
+              email.set("code@io7m.com")
+              organization.set("io7m")
+              organizationUrl.set("https://www.io7m.com/")
             }
           }
         }
