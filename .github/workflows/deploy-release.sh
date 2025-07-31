@@ -48,6 +48,9 @@ fi
 START_DIRECTORY="$(pwd)"
 DEPLOY_DIRECTORY="$(pwd)/build/maven"
 
+info "Deleting extra files..."
+find "${DEPLOY_DIRECTORY}" -type f -name 'maven-metadata*' -exec rm -v {} \;
+
 info "The following artifacts will be deployed:"
 find "${DEPLOY_DIRECTORY}" -type f
 
