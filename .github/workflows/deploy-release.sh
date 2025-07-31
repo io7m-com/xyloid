@@ -113,6 +113,10 @@ do
     info "Deployed"
     exit 0
   fi
+  if [ "${DEPLOYMENT_STATE}" = "FAILED" ]
+  then
+    fatal "Failed!"
+  fi
 
   sleep 10
 done
