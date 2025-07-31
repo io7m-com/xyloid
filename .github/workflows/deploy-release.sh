@@ -35,11 +35,6 @@ then
   error "MAVEN_CENTRAL_PASSWORD is not defined"
   FAILED=1
 fi
-if [ -z "${MAVEN_CENTRAL_STAGING_PROFILE_ID}" ]
-then
-  error "MAVEN_CENTRAL_STAGING_PROFILE_ID is not defined"
-  FAILED=1
-fi
 
 if [ ${FAILED} -eq 1 ]
 then
@@ -47,28 +42,10 @@ then
 fi
 
 #------------------------------------------------------------------------
-# Download Brooklime if necessary.
-#
-
-BROOKLIME_URL="https://repo1.maven.org/maven2/com/io7m/brooklime/com.io7m.brooklime.cmdline/2.0.1/com.io7m.brooklime.cmdline-2.0.1-main.jar"
-BROOKLIME_SHA256_EXPECTED="eb77e7459f3ece239f68e0b634be6cf9f8b57d6c18f0a2bce1cd6a06c611a3ff"
-
-wget -O "brooklime.jar.tmp" "${BROOKLIME_URL}" || fatal "Could not download brooklime"
-mv "brooklime.jar.tmp" "brooklime.jar" || fatal "Could not rename brooklime"
-
-BROOKLIME_SHA256_RECEIVED=$(openssl sha256 "brooklime.jar" | awk '{print $NF}') || fatal "Could not checksum brooklime.jar"
-
-if [ "${BROOKLIME_SHA256_EXPECTED}" != "${BROOKLIME_SHA256_RECEIVED}" ]
-then
-  fatal "brooklime.jar checksum does not match.
-  Expected: ${BROOKLIME_SHA256_EXPECTED}
-  Received: ${BROOKLIME_SHA256_RECEIVED}"
-fi
-
-#------------------------------------------------------------------------
 # Check the built artifacts.
 #
 
+START_DIRECTORY="$(pwd)"
 DEPLOY_DIRECTORY="$(pwd)/build/maven"
 
 info "The following artifacts will be deployed:"
@@ -91,100 +68,51 @@ then
 fi
 
 #------------------------------------------------------------------------
-# Create a staging repository on Maven Central.
+# Create a bundle to be uploaded
 #
 
-info "Creating a staging repository on Maven Central"
-
-(cat <<EOF
-create
---baseURI
-https://s01.oss.sonatype.org/
---description
-ThePalaceProject ${TIMESTAMP}
---stagingProfileId
-${MAVEN_CENTRAL_STAGING_PROFILE_ID}
---user
-${MAVEN_CENTRAL_USERNAME}
---password
-${MAVEN_CENTRAL_PASSWORD}
-EOF
-) > args.txt || fatal "Could not write argument file"
-
-MAVEN_CENTRAL_STAGING_REPOSITORY_ID=$(java -jar brooklime.jar @args.txt) || fatal "Could not create staging repository"
+cd "${DEPLOY_DIRECTORY}" ||
+  fatal "Could not switch directories."
+zip -9 -r "${START_DIRECTORY}/bundle.zip" . ||
+  fatal "Could not generate bundle."
+cd "${START_DIRECTORY}" ||
+  fatal "Could not switch directories."
 
 #------------------------------------------------------------------------
-# Upload content to the staging repository on Maven Central.
+# Upload bundle.
 #
 
-info "Uploading content to repository ${MAVEN_CENTRAL_STAGING_REPOSITORY_ID}"
+BEARER_TOKEN=$(echo "${MAVEN_CENTRAL_USERNAME}:${MAVEN_CENTRAL_PASSWORD}" | base64)
 
-(cat <<EOF
-upload
---verbose
-debug
---baseURI
-https://s01.oss.sonatype.org/
---stagingProfileId
-${MAVEN_CENTRAL_STAGING_PROFILE_ID}
---user
-${MAVEN_CENTRAL_USERNAME}
---password
-${MAVEN_CENTRAL_PASSWORD}
---directory
-${DEPLOY_DIRECTORY}
---repository
-${MAVEN_CENTRAL_STAGING_REPOSITORY_ID}
---quiet
-EOF
-) > args.txt || fatal "Could not write argument file"
+info "Uploading bundle..."
+DEPLOYMENT_ID=$(
+  curl \
+    --request POST \
+    --verbose \
+    --header "Authorization: Bearer ${BEARER_TOKEN}" \
+    --form bundle=@bundle.zip \
+    "https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC"
+) || fatal "Could not upload bundle."
 
-java -jar brooklime.jar @args.txt || fatal "Could not upload content"
+while true
+do
+  info "Checking deployment state..."
 
-#------------------------------------------------------------------------
-# Close the staging repository.
-#
+  DEPLOYMENT_STATE=$(
+  curl \
+    --request POST \
+    --verbose \
+    --header "Authorization: Bearer ${BEARER_TOKEN}" \
+    "https://central.sonatype.com/api/v1/publisher/status?id=${DEPLOYMENT_ID}" \
+    | jq -r ".deploymentState"
+  ) || fatal "Could not check deployment state."
 
-info "Closing repository ${MAVEN_CENTRAL_STAGING_REPOSITORY_ID}. This can take a few minutes."
+  info "Deployment state: ${DEPLOYMENT_STATE}"
+  if [ "${DEPLOYMENT_STATE}" = "PUBLISHED" ]
+  then
+    info "Deployed"
+    exit 0
+  fi
 
-(cat <<EOF
-close
---baseURI
-https://s01.oss.sonatype.org/
---stagingProfileId
-${MAVEN_CENTRAL_STAGING_PROFILE_ID}
---user
-${MAVEN_CENTRAL_USERNAME}
---password
-${MAVEN_CENTRAL_PASSWORD}
---repository
-${MAVEN_CENTRAL_STAGING_REPOSITORY_ID}
-EOF
-) > args.txt || fatal "Could not write argument file"
-
-java -jar brooklime.jar @args.txt || fatal "Could not close staging repository"
-
-#------------------------------------------------------------------------
-# Release the staging repository.
-#
-
-info "Releasing repository ${MAVEN_CENTRAL_STAGING_REPOSITORY_ID}"
-
-(cat <<EOF
-release
---baseURI
-https://s01.oss.sonatype.org/
---stagingProfileId
-${MAVEN_CENTRAL_STAGING_PROFILE_ID}
---user
-${MAVEN_CENTRAL_USERNAME}
---password
-${MAVEN_CENTRAL_PASSWORD}
---repository
-${MAVEN_CENTRAL_STAGING_REPOSITORY_ID}
-EOF
-) > args.txt || fatal "Could not write argument file"
-
-java -jar brooklime.jar @args.txt || fatal "Could not release staging repository"
-
-info "Release completed"
+  sleep 10
+done
