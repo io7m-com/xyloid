@@ -60,7 +60,7 @@ public final class UnpackSQLite
     final var x86 =
       jniBase.resolve("x86");
     final var armeabi =
-      jniBase.resolve("armeabi");
+      jniBase.resolve("armeabi-v7a");
     final var arm64_v8a =
       jniBase.resolve("arm64-v8a");
 
