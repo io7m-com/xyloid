@@ -1,12 +1,123 @@
-ERROR com.io7m.ghrepostools.Main : The specified command does not exist.
-  Command    : README
-  Error Code : command-nonexistent
+xyloid
+===
 
-DEBUG com.io7m.ghrepostools.Main : Exception: 
-com.io7m.quarrel.core.QException: The specified command does not exist.
-	at com.io7m.quarrel.core.QApplication.parseExpanded(QApplication.java:244)
-	at com.io7m.quarrel.core.QApplication.parse(QApplication.java:152)
-	at com.io7m.quarrel.core.QApplicationType.run(QApplicationType.java:94)
-	at com.io7m.ghrepostools.Main.run(Main.java:126)
-	at com.io7m.ghrepostools.Main.mainExitless(Main.java:110)
-	at com.io7m.ghrepostools.Main.main(Main.java:95)
+[![Maven Central](https://img.shields.io/maven-central/v/com.io7m.xyloid/com.io7m.xyloid.svg?style=flat-square)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.io7m.xyloid%22)
+[![Maven Central (snapshot)](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fcom%2Fio7m%2Fxyloid%2Fcom.io7m.xyloid%2Fmaven-metadata.xml&style=flat-square)](https://central.sonatype.com/repository/maven-snapshots/com/io7m/xyloid/)
+[![Codecov](https://img.shields.io/codecov/c/github/io7m-com/xyloid.svg?style=flat-square)](https://codecov.io/gh/io7m-com/xyloid)
+![Java Version](https://img.shields.io/badge/17-java?label=java&color=e65cc3)
+
+![com.io7m.xyloid](./src/site/resources/xyloid.jpg?raw=true)
+
+| JVM | Platform | Status |
+|-----|----------|--------|
+| OpenJDK (Temurin) Current | Linux | [![Build (OpenJDK (Temurin) Current, Linux)](https://img.shields.io/github/actions/workflow/status/io7m-com/xyloid/main.linux.temurin.current.yml)](https://www.github.com/io7m-com/xyloid/actions?query=workflow%3Amain.linux.temurin.current)|
+| OpenJDK (Temurin) LTS | Linux | [![Build (OpenJDK (Temurin) LTS, Linux)](https://img.shields.io/github/actions/workflow/status/io7m-com/xyloid/main.linux.temurin.lts.yml)](https://www.github.com/io7m-com/xyloid/actions?query=workflow%3Amain.linux.temurin.lts)|
+| OpenJDK (Temurin) Current | Windows | [![Build (OpenJDK (Temurin) Current, Windows)](https://img.shields.io/github/actions/workflow/status/io7m-com/xyloid/main.windows.temurin.current.yml)](https://www.github.com/io7m-com/xyloid/actions?query=workflow%3Amain.windows.temurin.current)|
+| OpenJDK (Temurin) LTS | Windows | [![Build (OpenJDK (Temurin) LTS, Windows)](https://img.shields.io/github/actions/workflow/status/io7m-com/xyloid/main.windows.temurin.lts.yml)](https://www.github.com/io7m-com/xyloid/actions?query=workflow%3Amain.windows.temurin.lts)|
+
+## Repository Relocation
+
+Development of this project has moved to an
+[open-source but not open-contribution](https://sqlite.org/copyright.html#notopencontrib)
+model.
+
+Source code and commits will remain publicly available perpetually, but issues
+and/or pull requests will be rejected and/or ignored. Additionally, this project
+will now only be available via a read-only mirror at:
+
+  https://codeberg.org/io7m-com/xyloid
+
+
+## xyloid
+
+Repackaged [xerial sqlite-jdbc](https://github.com/xerial/sqlite-jdbc) binaries for Android.
+
+### Features
+
+* SQLite binaries packaged as a convenient `.aar` package.
+
+### Motivation
+
+When developing Android applications, the sensible approach is to have as little of the application
+depend on the Android APIs directly. This is a sensible approach for two main reasons:
+
+* The Android APIs are extremely poorly engineered, and each poorly engineered API tends to be
+  replaced with a new poorly engineered API on a repeating schedule. This means that applications
+  depending on those APIs get to be repeatedly rewritten.
+* As soon as any part of an application depends on an Android API, it's no longer possible to
+  write automated tests for that part of the application without either using extremely
+  fragile and frequently-broken _instrumented device tests_, or going through hacky solutions
+  such as [RoboElectric](https://robolectric.org/).
+
+In accordance with this approach, it follows that any application that uses a relational database
+for local state should do so through the standardized
+[JDBC](https://en.wikipedia.org/wiki/Java_Database_Connectivity) APIs rather than depending on
+anything Android provides.
+
+Unfortunately, even though Android bundles a version of the [SQLite](https://www.sqlite.org)
+database, the Android team refuse to publish a driver for the version of SQLite bundled with 
+Android. This means that any part of the application that uses the database immediately becomes 
+dependent on a proprietary Android API, causing the issues detailed above.
+
+Thankfully, the excellent [xerial sqlite-jdbc](https://github.com/xerial/sqlite-jdbc) project
+publishes a version of SQLite compiled for Android, complete with a full JDBC driver. Unfortunately,
+due to Android using an entirely custom packaging system for no reason whatsoever, there are some
+extra steps required to use the `xerial` binaries in an Android application.
+
+The `xyloid` package simply repackages the `xerial` binaries such that they can be specified
+as a dependency in Android applications, and used without any extra steps required.
+
+### Usage
+
+The core of your application should be written without any dependencies on the Android API.
+This platform-independent code should specify a dependency on the normal upstream xerial
+`sqlite-jdbc` artifacts. Those artifacts provide the Java bytecode for the JDBC driver:
+
+```
+$ cat core/build.gradle.kts
+dependencies {
+  implementation("org.xerial:sqlite-jdbc:${LATEST_VERSION}")
+}
+...
+```
+
+Then, the Android-dependent submodule that produces the actual `apk` or `aab` file for the
+application should specify a dependency on the core, and on the `xyloid` `aar` package:
+
+```
+$ cat app/build.gradle.kts
+dependencies {
+  implementation(project(":core"))
+  implementation("com.io7m.xyloid:com.io7m.xyloid.natives:${LATEST_VERSION}")
+}
+
+android {
+  buildTypes {
+    debug {
+      ndk {
+        abiFilters.add("x86")
+        abiFilters.add("x86_64")
+        abiFilters.add("arm64-v8a")
+        abiFilters.add("armeabi-v7a")
+      }
+      versionNameSuffix = "-debug"
+    }
+    release {
+      ndk {
+        abiFilters.add("x86")
+        abiFilters.add("x86_64")
+        abiFilters.add("arm64-v8a")
+        abiFilters.add("armeabi-v7a")
+      }
+    }
+  }
+}
+```
+
+With this setup, you can write unit tests for the core of the application as plain JUnit tests
+and run them on your local machine. When run like this, the `sqlite` binaries from the
+`org.xerial:sqlite-jdbc` package will be used. Additionally, when your Android application
+`app` module is assembled, the binaries from the `com.io7m.xyloid:com.io7m.xyloid.natives` will
+be used instead, and this will result in the correct binaries being present in the `apk/aab`.
+
+
